@@ -1,0 +1,122 @@
+# Reglas para Cursor AI
+
+## Idioma y Comunicación
+- Todos los mensajes de commit deben generarse en español
+- Los mensajes de commit deben ser claros, descriptivos y seguir las convanciones de commits convencionales
+- Siempre usar español para cualquier comunicación o documentación generada
+
+## Formato de Commits
+- Usar formato: tipo(alcance): descripción breve
+- Tipos comunes: feat, fix, docs, style, refactor, test, chore
+- Ejemplo: "feat(auth): agregar autenticación con Firebase"
+
+## Principios de Clean Code (Robert C. Martin)
+
+### Estructura de Métodos
+- Crear métodos pequeños y enfocados en una sola responsabilidad
+- Cada método debe hacer una cosa y hacerla bien
+- Usar métodos sub-modulares que se invoquen entre sí
+- Los nombres de métodos deben describir claramente su propósito interno
+- Leer el código debe ser como leer un libro: fluido y autodescriptivo
+
+### Variables de Clase (Fields Privados)
+- Si un objeto se usa frecuentemente en múltiples métodos, definirlo como field privado de la clase
+- Asignar el valor al field en el método de entrada principal
+- Esto evita pasar el mismo parámetro repetidamente entre métodos
+- Prefijo con guión bajo: `_objetoGlobal`
+- Ejemplo:
+```csharp
+  private PagoBancoDto _pagoBanco;
+  
+  private void EnBaseAlPagoDelBancoCrearPagoEnSap(PagoBancoDto pagoBanco) {
+      _pagoBanco = pagoBanco;
+      AplicarAccionesParaCrearPagoEnSap();
+  }
+  
+  private void AplicarAccionesParaCrearPagoEnSap() {
+      // Aquí _pagoBanco está disponible sin necesidad de pasarlo como parámetro
+      ValidarPagoBanco();
+      ProcesarPagoBanco();
+  }
+```
+
+### Manejo de Excepciones
+- Aislar el manejo de excepciones en un método wrapper separado
+- El método principal debe contener solo try-catch
+- La lógica de negocio va en métodos privados sin manejo de excepciones
+- Ejemplo:
+```csharp
+  private void MetodoPrincipal() {
+      try {
+          EjecutarLogicaDeNegocio();
+      } catch (Exception ex) {
+          _logger.LogError(ex, "Descripción del error");
+      }
+  }
+```
+
+### Comentarios
+- Evitar comentarios en el código (el código debe ser autoexplicativo)
+- Solo usar comentarios de firma de métodos cuando sea estrictamente necesario
+- Los nombres descriptivos de métodos reemplazan la necesidad de comentarios
+
+### Logging
+- Definir logs en puntos importantes del flujo
+- Aislar cada log en su propio método descriptivo
+- Prefijo: `RegistrarLog_` seguido de descripción clara
+- Ejemplo: `RegistrarLog_IniciandoEnvioDelClienteHaciaSap()`
+
+### Construcción de Objetos
+- Aislar cada propiedad en su propio método getter
+- Ordenar las asignaciones de propiedades de mayor a menor longitud de línea
+- Ejemplo:
+```csharp
+  private ClienteBanco ConstruirClienteParaBanco() {
+      var disponibilidadEnCredito = ObtenerDisponibilidadEnCredito();
+      var fechaNormalDePago = ObtenerFechaNormalDePago();
+      var montoCuenta = ObtenerMontoCuenta();
+      var nombre = ObtenerNombre();
+      return new ClienteBanco() {
+          PaymenteNormalDate = fechaNormalDePago,
+          Available = disponibilidadEnCredito,
+          AccountAmount = montoCuenta,
+          ClientName = nombre,
+      };
+  }
+```
+
+### Expresividad y Legibilidad
+- Usar variables booleanas intermedias con nombres descriptivos
+- Preferir nombres positivos y claros sobre negaciones complejas
+- Ejemplo:
+```csharp
+  private bool ClienteNoExisteEnElBanco() {
+      bool clienteExiste = _clienteSap.RegistradoEnBanco;
+      bool clienteNoExisteEnBanco = !clienteExiste;
+      return clienteNoExisteEnBanco;
+  }
+```
+
+### Flujo de Control
+- Extraer condiciones a métodos con nombres interrogativos
+- Las estructuras condicionales deben leerse como lenguaje natural
+- Ejemplo: `if (ClienteNoExisteEnElBanco()) { CrearClienteEnElBanco(); }`
+
+### Iteraciones
+- Extraer el cuerpo de loops a métodos separados
+- Nombrar claramente la acción que se aplica a cada elemento
+- Ejemplo:
+```csharp
+  private void ProcesarClientes(List<Cliente> clientes) {
+      foreach (var cliente in clientes) {
+          AplicarAccionesParaProcesarCliente(cliente);
+      }
+  }
+```
+
+## Estilo de Código
+- Mantener el código limpio y bien estructurado
+- Usar nombres descriptivos en inglés para variables y funciones
+- Métodos privados ordenados siguiendo el flujo de lectura (top-down)
+- Cada clase debe tener una responsabilidad clara
+- Fields privados con prefijo guión bajo para objetos compartidos entre métodos
