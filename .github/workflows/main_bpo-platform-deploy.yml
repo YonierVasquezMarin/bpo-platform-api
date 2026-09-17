@@ -73,4 +73,5 @@ jobs:
         with:
           app-name: 'bpo-platform-deploy'
           slot-name: 'Production'
+          startup-command: 'python -m uvicorn app.main:app --host 0.0.0.0 --port 8000'
           
