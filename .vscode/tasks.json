@@ -39,6 +39,52 @@
         "kind": "build",
         "isDefault": true
       }
+    },
+    {
+      "label": "Aplicar migraciones (alembic upgrade head)",
+      "type": "process",
+      "command": "${workspaceFolder}/.venv/Scripts/alembic.exe",
+      "args": [
+        "upgrade",
+        "head"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": true
+      }
+    },
+    {
+      "label": "Generar migración (alembic revision --autogenerate)",
+      "type": "process",
+      "command": "${workspaceFolder}/.venv/Scripts/alembic.exe",
+      "args": [
+        "revision",
+        "--autogenerate",
+        "-m",
+        "${input:migrationDescription}"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": true
+      }
+    }
+  ],
+  "inputs": [
+    {
+      "id": "migrationDescription",
+      "type": "promptString",
+      "description": "Descripción de la migración (mensaje de alembic -m)",
+      "default": "descripcion del cambio"
     }
   ]
 }

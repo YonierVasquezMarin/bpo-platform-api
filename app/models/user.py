@@ -27,6 +27,7 @@ class User(Base):
     id: Mapped[int] = mapped_column(Integer, Identity(start=1, increment=1), primary_key=True)
     external_id: Mapped[str | None] = mapped_column(Unicode(255), nullable=True)
     email: Mapped[str] = mapped_column(Unicode(255), unique=True, nullable=False)
+    password: Mapped[str] = mapped_column(Unicode(255), nullable=False)
     first_name: Mapped[str | None] = mapped_column(Unicode(100), nullable=True)
     last_name: Mapped[str | None] = mapped_column(Unicode(100), nullable=True)
     role: Mapped[UserRole] = mapped_column(Unicode(50), nullable=False)
