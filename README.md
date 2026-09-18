@@ -23,6 +23,14 @@ API orquestadora de la solución agéntica BPO. Expone servicios HTTP para coord
 - pip
 - Acceso a Azure SQL Server (el firewall debe permitir la IP desde la que se ejecuta Alembic o la API)
 
+## 🧩 Extensiones recomendadas (Cursor / VS Code)
+
+Se recomienda instalar estas extensiones:
+
+- [Python](https://marketplace.visualstudio.com/items?itemName=ms-python.python) (`ms-python.python`)
+- [Python Debugger](https://marketplace.visualstudio.com/items?itemName=ms-python.debugpy) (`ms-python.debugpy`)
+- [GitHub Actions](https://marketplace.visualstudio.com/items?itemName=github.vscode-github-actions) (`github.vscode-github-actions`)
+
 ## ▶️ Arranque local
 
 1. Clonar el repositorio y entrar al directorio del proyecto:
