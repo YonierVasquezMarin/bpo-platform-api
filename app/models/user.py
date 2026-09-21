@@ -2,7 +2,7 @@ from datetime import datetime
 from enum import Enum
 
 from sqlalchemy import Boolean, DateTime, Identity, Index, Integer, Unicode, func, text
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 
@@ -45,3 +45,44 @@ class User(Base):
         onupdate=func.sysutcdatetime(),
     )
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    uploaded_document_versions: Mapped[list["DocumentVersion"]] = relationship(
+        back_populates="uploaded_by_user",
+        foreign_keys="DocumentVersion.uploaded_by_user_id",
+    )
+    approved_document_versions: Mapped[list["DocumentVersion"]] = relationship(
+        back_populates="approved_by_user",
+        foreign_keys="DocumentVersion.approved_by_user_id",
+    )
+    created_human_feedbacks: Mapped[list["HumanFeedback"]] = relationship(
+        back_populates="created_by_user",
+        foreign_keys="HumanFeedback.created_by_user_id",
+    )
+    query_sessions: Mapped[list["QuerySession"]] = relationship(
+        back_populates="user",
+        foreign_keys="QuerySession.user_id",
+    )
+    controlled_query_sessions: Mapped[list["QuerySession"]] = relationship(
+        back_populates="controller_user",
+        foreign_keys="QuerySession.controller_user_id",
+    )
+    sent_query_messages: Mapped[list["QueryMessage"]] = relationship(
+        back_populates="sender_user",
+        foreign_keys="QueryMessage.sender_user_id",
+    )
+    initiated_handoffs: Mapped[list["QueryHandoff"]] = relationship(
+        back_populates="initiated_by_user",
+        foreign_keys="QueryHandoff.initiated_by_user_id",
+    )
+    handoffs_from: Mapped[list["QueryHandoff"]] = relationship(
+        back_populates="from_user",
+        foreign_keys="QueryHandoff.from_user_id",
+    )
+    handoffs_to: Mapped[list["QueryHandoff"]] = relationship(
+        back_populates="to_user",
+        foreign_keys="QueryHandoff.to_user_id",
+    )
+    audit_events: Mapped[list["AuditEvent"]] = relationship(
+        back_populates="actor_user",
+        foreign_keys="AuditEvent.actor_user_id",
+    )
