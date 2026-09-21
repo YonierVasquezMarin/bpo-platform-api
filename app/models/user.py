@@ -10,6 +10,7 @@ from app.core.database import Base
 class UserRole(str, Enum):
     ADMIN = "ADMIN"
     KNOWLEDGE_MANAGER = "KNOWLEDGE_MANAGER"
+    SUPPORT = "SUPPORT"
     USER = "USER"
 
 

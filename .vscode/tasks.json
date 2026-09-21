@@ -41,6 +41,44 @@
       }
     },
     {
+      "label": "Cifrar contraseña",
+      "type": "process",
+      "command": "${workspaceFolder}/.venv/Scripts/python.exe",
+      "args": [
+        "${workspaceFolder}/scripts/encrypt_password.py",
+        "encrypt",
+        "${input:textoCifrar}"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": true
+      }
+    },
+    {
+      "label": "Descifrar contraseña",
+      "type": "process",
+      "command": "${workspaceFolder}/.venv/Scripts/python.exe",
+      "args": [
+        "${workspaceFolder}/scripts/encrypt_password.py",
+        "decrypt",
+        "${input:textoDescifrar}"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": true
+      }
+    },
+    {
       "label": "Aplicar migraciones (alembic upgrade head)",
       "type": "process",
       "command": "${workspaceFolder}/.venv/Scripts/alembic.exe",
@@ -85,6 +123,17 @@
       "type": "promptString",
       "description": "Descripción de la migración (mensaje de alembic -m)",
       "default": "descripcion del cambio"
+    },
+    {
+      "id": "textoCifrar",
+      "type": "promptString",
+      "description": "Texto a cifrar",
+      "password": true
+    },
+    {
+      "id": "textoDescifrar",
+      "type": "promptString",
+      "description": "Texto a descifrar"
     }
   ]
 }

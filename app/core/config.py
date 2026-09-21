@@ -9,6 +9,8 @@ class Settings(BaseSettings):
     sqlserver_database: str = "bpo_platform"
     sqlserver_user: str = "sa"
     sqlserver_password: str = "password"
+    encryption_key: str = ""
+    encryption_salt: str = ""
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
