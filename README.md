@@ -73,6 +73,13 @@ SQLSERVER_SERVER=tu-servidor.database.windows.net
 SQLSERVER_DATABASE=nombre_bd
 SQLSERVER_USER=usuario_sql
 SQLSERVER_PASSWORD=********
+
+ENCRYPTION_KEY=********
+ENCRYPTION_SALT=********
+
+JWT_SECRET_KEY=********
+JWT_ALGORITHM=HS256
+JWT_EXPIRE_MINUTES=60
 ```
 
 5. Iniciar el servidor:
@@ -123,13 +130,14 @@ alembic history
 
 Las migraciones **no** se ejecutan al arrancar Uvicorn. Hay que lanzar `alembic upgrade head` de forma explícita contra la base deseada.
 
-En Azure App Service, define las mismas variables `SQLSERVER_*` como Application Settings. `pymssql` se instala con el resto de dependencias; no requiere driver ODBC en el runtime.
+En Azure App Service, define las mismas variables `SQLSERVER_*`, `ENCRYPTION_*` y `JWT_*` como Application Settings. `pymssql` se instala con el resto de dependencias; no requiere driver ODBC en el runtime.
 
 ## 🔌 Endpoints
 
 | Método | Ruta | Descripción |
 | --- | --- | --- |
-| `GET` | `/health` | Estado del servicio |
+| `GET` | `/api/health` | Estado del servicio |
+| `POST` | `/api/auth/login` | Autenticación con email y contraseña; retorna un JWT |
 
 Documentación interactiva:
 

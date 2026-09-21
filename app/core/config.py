@@ -11,6 +11,9 @@ class Settings(BaseSettings):
     sqlserver_password: str = "password"
     encryption_key: str = ""
     encryption_salt: str = ""
+    jwt_secret_key: str = ""
+    jwt_algorithm: str = "HS256"
+    jwt_expire_minutes: int = 60
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

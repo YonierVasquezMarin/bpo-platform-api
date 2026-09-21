@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from app.api.routes.health import router as health_router
+from app.api.routes import api_router
 from app.core.config import settings
 from app.core.database import engine
 
@@ -21,7 +21,7 @@ def create_app() -> FastAPI:
         description="API orquestadora de la solución agéntica BPO",
         lifespan=lifespan,
     )
-    application.include_router(health_router)
+    application.include_router(api_router)
     return application
 
 
