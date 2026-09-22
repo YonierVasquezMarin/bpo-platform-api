@@ -142,7 +142,8 @@ En Azure App Service, define las mismas variables `SQLSERVER_*`, `ENCRYPTION_*` 
 
 | Método | Ruta | Descripción |
 | --- | --- | --- |
-| `GET` | `/api/health` | Estado del servicio |
+| `GET` | `/api/health` | Estado del proceso (liveness, no consulta servicios externos) |
+| `GET` | `/api/health/connections` | Estado de conexión con servicios externos (hoy: base de datos) |
 | `POST` | `/api/auth/login` | Autenticación con email y contraseña; retorna un JWT |
 
 Documentación interactiva:
@@ -266,9 +267,16 @@ UPDATE users SET is_active = 1 WHERE email = 'usuario@ejemplo.com';
 
 ---
 
+#### ❌ `GET /api/health/connections` responde 503
+
+- **Síntoma:** el cuerpo trae `"status": "error"` o `"degraded"` y el servicio `database` aparece con `"status": "error"`.
+- **Solución:** la API está en pie (`GET /api/health` sigue en 200), pero no pudo hablar con un servicio externo. Revisa la conexión a Azure SQL (variables `SQLSERVER_*` y firewall). El endpoint está pensado para ir sumando más servicios además de la base de datos.
+
+---
+
 #### ❌ No hay conexión a Azure SQL
 
-- **Síntoma:** `login timeout expired`, `Adaptive Server connection failed`, o `Client with IP address ... is not allowed to access the server`. Alembic también puede quedarse en timeout.
+- **Síntoma:** `login timeout expired`, `Adaptive Server connection failed`, o `Client with IP address ... is not allowed to access the server`. Alembic también puede quedarse en timeout. `GET /api/health/connections` puede responder 503.
 - **Solución:**
   1. Completa `SQLSERVER_SERVER`, `SQLSERVER_DATABASE`, `SQLSERVER_USER` y `SQLSERVER_PASSWORD` en `.env`
   2. En Azure SQL, agrega tu IP pública al firewall
