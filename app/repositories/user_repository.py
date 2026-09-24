@@ -10,6 +10,9 @@ class UserRepository:
     def __init__(self, db: Session) -> None:
         self._db = db
 
+    def find_by_id(self, user_id: int) -> User | None:
+        return self._db.get(User, user_id)
+
     def find_by_email(self, email: str) -> User | None:
         normalized_email = self._normalize_email(email)
         statement = select(User).where(func.lower(User.email) == normalized_email)

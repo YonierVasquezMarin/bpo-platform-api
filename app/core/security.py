@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 import jwt
 
 from app.core.config import settings
+from app.core.exceptions import InvalidAccessTokenError
 from app.models.user import User
 
 
@@ -21,6 +22,10 @@ class TokenService:
 
     def get_expires_in_seconds(self) -> int:
         return self._expire_minutes * 60
+
+    def read_user_id(self, access_token: str) -> int:
+        payload = self._decode_access_token(access_token)
+        return self._read_subject(payload)
 
     def _validate_secret_key(self) -> None:
         if self._secret_key_is_missing():
@@ -44,6 +49,19 @@ class TokenService:
 
     def _get_expiration_time(self, issued_at: datetime) -> datetime:
         return issued_at + timedelta(minutes=self._expire_minutes)
+
+    def _decode_access_token(self, access_token: str) -> dict[str, object]:
+        try:
+            return jwt.decode(access_token, self._secret_key, algorithms=[self._algorithm])
+        except jwt.InvalidTokenError as ex:
+            raise InvalidAccessTokenError() from ex
+
+    def _read_subject(self, payload: dict[str, object]) -> int:
+        subject = payload.get("sub")
+        subject_is_numeric = subject is not None and str(subject).isdigit()
+        if not subject_is_numeric:
+            raise InvalidAccessTokenError()
+        return int(str(subject))
 
     def _get_role_value(self) -> str:
         role = self._user.role

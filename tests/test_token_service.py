@@ -4,6 +4,7 @@ from unittest.mock import MagicMock
 import jwt
 import pytest
 
+from app.core.exceptions import InvalidAccessTokenError
 from app.core.security import TokenService
 from app.models.user import User, UserRole
 
@@ -27,6 +28,28 @@ def test_create_access_token_contains_user_claims() -> None:
     assert payload["email"] == "support@example.com"
     assert payload["role"] == UserRole.SUPPORT.value
     assert token_service.get_expires_in_seconds() == 1800
+
+
+def test_read_user_id_returns_the_subject() -> None:
+    token_service = TokenService(
+        secret_key="clave-jwt-de-prueba-con-longitud-segura-32b",
+        algorithm="HS256",
+        expire_minutes=30,
+    )
+    access_token = token_service.create_access_token(_build_user())
+
+    assert token_service.read_user_id(access_token) == 7
+
+
+def test_read_user_id_rejects_an_invalid_token() -> None:
+    token_service = TokenService(
+        secret_key="clave-jwt-de-prueba-con-longitud-segura-32b",
+        algorithm="HS256",
+        expire_minutes=30,
+    )
+
+    with pytest.raises(InvalidAccessTokenError):
+        token_service.read_user_id("token-invalido")
 
 
 def test_missing_secret_key_raises_value_error() -> None:
