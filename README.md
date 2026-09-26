@@ -310,3 +310,29 @@ Al hacer push a `main`, GitHub Actions construye la aplicación con Python 3.12 
 ```bash
 python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
+
+### 📜 Logs en Azure
+
+La API escribe en la consola el inicio y el resultado de procesos como el login, el cargue de documentos y el feedback. Cada línea incluye fecha, hora, nivel y módulo. Esos mensajes solo quedan en Azure si el registro de la aplicación está activo. Por defecto viene desactivado.
+
+Para activarlo:
+
+1. Entra al App Service `bpo-platform-deploy` en el portal de Azure.
+2. En el menú izquierdo abre **Supervisión** > **Registros de App Service**.
+3. En **Registro de la aplicación**, elige **Sistema de archivos**.
+4. Define **Cuota (MB)** y **Período de retención (días)**. Un valor habitual es 100 MB y 3 días: se conservan hasta ese plazo o hasta llenar la cuota, lo que ocurra primero.
+5. Pulsa **Guardar**.
+
+Para verlos en vivo:
+
+1. En el mismo menú abre **Supervisión** > **Secuencia de registro**.
+2. Repite la acción en la API (por ejemplo, un login). Las líneas anteriores a activar el registro no aparecen.
+
+Una autenticación correcta se ve así:
+
+```text
+2026-09-26 11:31:15,123 INFO [app.services.auth_service] Iniciando autenticación para correo@ejemplo.com
+2026-09-26 11:31:15,456 INFO [app.services.auth_service] Autenticación exitosa para el usuario 1
+```
+
+Los textos de la plataforma llegan a Azure después de desplegar la versión que configura el logger en `app/main.py`. Hasta ese despliegue, la secuencia de registro muestra las líneas de Uvicorn.
