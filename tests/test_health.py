@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 import pytest
 from fastapi.testclient import TestClient
 
-from app.api.deps import get_connection_status_service
+from app.api.deps import get_connection_status_service, get_external_service_checkers
 from app.dtos.connection_status import (
     ConnectionStatus,
     ConnectionStatusResponseDto,
@@ -20,6 +20,20 @@ client = TestClient(app)
 def clear_dependency_overrides() -> Iterator[None]:
     yield
     app.dependency_overrides.clear()
+
+
+def test_external_service_checkers_include_database_blob_and_openai() -> None:
+    database_checker = MagicMock()
+    blob_storage_checker = MagicMock()
+    azure_openai_checker = MagicMock()
+
+    checkers = get_external_service_checkers(
+        database_checker=database_checker,
+        blob_storage_checker=blob_storage_checker,
+        azure_openai_checker=azure_openai_checker,
+    )
+
+    assert checkers == [database_checker, blob_storage_checker, azure_openai_checker]
 
 
 def test_health_returns_ok() -> None:

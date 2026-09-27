@@ -28,16 +28,23 @@ class AzureBlobStorageClient:
         self._ensure_configured()
         self._container_client().delete_blob(blob_path)
 
+    def ensure_container(self) -> None:
+        self._ensure_configured()
+        self._container_client()
+
     def _ensure_configured(self) -> None:
         if not self._connection_string.strip():
             raise BlobStorageNotConfiguredError()
 
     def _container_client(self):
-        service = BlobServiceClient.from_connection_string(self._connection_string)
-        container = service.get_container_client(self._container_name)
+        container = self._container_reference()
         if not container.exists():
             container.create_container()
         return container
+
+    def _container_reference(self):
+        service = BlobServiceClient.from_connection_string(self._connection_string)
+        return service.get_container_client(self._container_name)
 
 
 def build_blob_storage_client() -> AzureBlobStorageClient:

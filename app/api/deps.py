@@ -15,7 +15,9 @@ from app.models.user import User, UserRole
 from app.repositories.document_repository import DocumentRepository
 from app.repositories.user_repository import UserRepository
 from app.services.auth_service import AuthService
+from app.services.azure_openai_connection_checker import AzureOpenAiConnectionChecker
 from app.services.blob_storage_client import build_blob_storage_client
+from app.services.blob_storage_connection_checker import BlobStorageConnectionChecker
 from app.services.connection_status_service import ConnectionStatusService
 from app.services.database_connection_checker import DatabaseConnectionChecker
 from app.services.document_processing_runner import index_document_version, process_document_version
@@ -63,10 +65,26 @@ def get_database_connection_checker(
     return DatabaseConnectionChecker(database_engine)
 
 
+def get_blob_storage_connection_checker() -> BlobStorageConnectionChecker:
+    return BlobStorageConnectionChecker(build_blob_storage_client())
+
+
+def get_azure_openai_connection_checker() -> AzureOpenAiConnectionChecker:
+    return AzureOpenAiConnectionChecker(
+        endpoint=settings.azure_openai_endpoint,
+        api_key=settings.azure_openai_api_key,
+        api_version=settings.azure_openai_api_version,
+        chat_deployment=settings.azure_openai_chat_deployment,
+        embedding_deployment=settings.azure_openai_embedding_deployment,
+    )
+
+
 def get_external_service_checkers(
     database_checker: DatabaseConnectionChecker = Depends(get_database_connection_checker),
+    blob_storage_checker: BlobStorageConnectionChecker = Depends(get_blob_storage_connection_checker),
+    azure_openai_checker: AzureOpenAiConnectionChecker = Depends(get_azure_openai_connection_checker),
 ) -> list[ExternalServiceChecker]:
-    return [database_checker]
+    return [database_checker, blob_storage_checker, azure_openai_checker]
 
 
 def get_connection_status_service(
