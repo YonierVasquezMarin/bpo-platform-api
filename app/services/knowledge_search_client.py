@@ -1,3 +1,4 @@
+import logging
 from dataclasses import dataclass
 
 from azure.core.credentials import AzureKeyCredential
@@ -17,6 +18,8 @@ from azure.search.documents.indexes.models import (
 
 from app.core.config import settings
 from app.core.exceptions import DocumentSearchNotConfiguredError
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -42,7 +45,13 @@ class AzureKnowledgeSearchClient:
     def upsert_document(self, document: KnowledgeSearchDocument) -> str:
         self._ensure_configured()
         self._ensure_index()
-        self._search_client().merge_or_upload_documents(documents=[self._payload(document)])
+        self._log_search_upsert_started(document.document_key)
+        try:
+            self._search_client().merge_or_upload_documents(documents=[self._payload(document)])
+        except Exception as error:
+            self._log_search_upsert_failed(document.document_key, error)
+            raise
+        self._log_search_upsert_completed(document.document_key)
         return document.document_key
 
     def _ensure_configured(self) -> None:
@@ -57,8 +66,16 @@ class AzureKnowledgeSearchClient:
         try:
             index_client.get_index(self._index_name)
         except ResourceNotFoundError:
-            index_client.create_index(self._build_index())
+            self._create_index(index_client)
         self._index_is_ready = True
+
+    def _create_index(self, index_client: SearchIndexClient) -> None:
+        try:
+            index_client.create_index(self._build_index())
+        except Exception as error:
+            self._log_search_index_creation_failed(error)
+            raise
+        self._log_search_index_created()
 
     def _build_index(self) -> SearchIndex:
         return SearchIndex(
@@ -104,6 +121,21 @@ class AzureKnowledgeSearchClient:
             "page_number": document.page_number,
             "content_vector": document.content_vector,
         }
+
+    def _log_search_upsert_started(self, document_key: str) -> None:
+        logger.info("Enviando el documento %s al índice %s", document_key, self._index_name)
+
+    def _log_search_upsert_completed(self, document_key: str) -> None:
+        logger.info("Documento %s cargado en el índice %s", document_key, self._index_name)
+
+    def _log_search_upsert_failed(self, document_key: str, error: Exception) -> None:
+        logger.exception("Falló el cargue del documento %s en el índice %s: %s", document_key, self._index_name, error)
+
+    def _log_search_index_created(self) -> None:
+        logger.info("Índice %s creado", self._index_name)
+
+    def _log_search_index_creation_failed(self, error: Exception) -> None:
+        logger.exception("Falló la creación del índice %s: %s", self._index_name, error)
 
     def _search_client(self) -> SearchClient:
         return SearchClient(

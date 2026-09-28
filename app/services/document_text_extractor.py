@@ -1,3 +1,4 @@
+import logging
 import re
 from io import BytesIO
 
@@ -9,6 +10,8 @@ from pypdf import PdfReader
 
 from app.core.exceptions import DocumentTextExtractionError, UnsupportedDocumentTypeError
 from app.services.document_text import ExtractedSection
+
+logger = logging.getLogger(__name__)
 
 _MARKDOWN_HEADING = re.compile(r"^#{1,6}\s+(.+?)\s*$")
 _NUMBERED_HEADING = re.compile(r"^(\d+(?:\.\d+)*)[.)]\s+(\S.*)$")
@@ -28,12 +31,17 @@ class DocumentTextExtractor:
         self._file_name = file_name
         self._content = content
         self._reset_sections()
+        self._log_extraction_started()
         try:
-            return self._extract_by_extension()
-        except (DocumentTextExtractionError, UnsupportedDocumentTypeError):
+            sections = self._extract_by_extension()
+        except (DocumentTextExtractionError, UnsupportedDocumentTypeError) as error:
+            self._log_extraction_rejected(error)
             raise
         except Exception as ex:
+            self._log_extraction_failed(ex)
             raise DocumentTextExtractionError("No se pudo extraer el texto del documento") from ex
+        self._log_extraction_completed(len(sections))
+        return sections
 
     def _reset_sections(self) -> None:
         self._sections = []
@@ -188,3 +196,15 @@ class DocumentTextExtractor:
         if not self._sections:
             raise DocumentTextExtractionError(message)
         return self._sections
+
+    def _log_extraction_started(self) -> None:
+        logger.info("Extrayendo texto de %s", self._file_name)
+
+    def _log_extraction_completed(self, section_count: int) -> None:
+        logger.info("Texto de %s extraído en %s secciones", self._file_name, section_count)
+
+    def _log_extraction_rejected(self, error: Exception) -> None:
+        logger.warning("Extracción rechazada para %s: %s", self._file_name, error)
+
+    def _log_extraction_failed(self, error: Exception) -> None:
+        logger.exception("Falló la extracción de texto de %s: %s", self._file_name, error)

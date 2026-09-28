@@ -1,3 +1,4 @@
+import logging
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from decimal import Decimal
@@ -9,6 +10,8 @@ from app.models.chunk_interpretation import ChunkInterpretation
 from app.models.document_version import DocumentVersion, DocumentVersionStatus
 from app.repositories.document_repository import DocumentRepository
 from app.services.chunk_interpretation_client import AzureChunkInterpretationClient, ChunkInterpretationResult
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -36,9 +39,12 @@ class DocumentInterpretationService:
     def interpret_version(self, version: DocumentVersion, chunks: list[Chunk]) -> InterpretationSummary:
         self._version = version
         self._chunks = chunks
+        self._log_interpretation_started()
         self._interpret_all_chunks()
         self._apply_confidence_gate()
-        return self._build_summary()
+        summary = self._build_summary()
+        self._log_interpretation_completed(summary)
+        return summary
 
     def _interpret_all_chunks(self) -> None:
         for chunk in self._chunks:
@@ -47,12 +53,15 @@ class DocumentInterpretationService:
     def _interpret_chunk(self, chunk: Chunk) -> None:
         try:
             result = self._interpretation_client.interpret_chunk(chunk.content, chunk.section_title)
-        except (DocumentIntelligenceNotConfiguredError, DocumentModelCallError):
+        except (DocumentIntelligenceNotConfiguredError, DocumentModelCallError) as error:
+            self._log_chunk_interpretation_failed(chunk, error)
             raise
         except Exception:
+            self._log_chunk_interpretation_unreliable(chunk)
             result = self._unreliable_result()
         self._store_interpretation(chunk, result)
         self._apply_chunk_confidence(chunk, result.confidence)
+        self._log_chunk_interpreted(chunk, result)
 
     def _store_interpretation(self, chunk: Chunk, result: ChunkInterpretationResult) -> None:
         interpretation = ChunkInterpretation(
@@ -119,6 +128,43 @@ class DocumentInterpretationService:
 
     def _count_status(self, status: ChunkStatus) -> int:
         return sum(1 for chunk in self._chunks if enum_value(chunk.status) == status.value)
+
+    def _log_interpretation_started(self) -> None:
+        logger.info("Interpretando %s chunks de la versión %s", len(self._chunks), self._version.id)
+
+    def _log_chunk_interpretation_failed(self, chunk: Chunk, error: Exception) -> None:
+        logger.exception(
+            "Falló la interpretación del chunk %s de la versión %s: %s",
+            chunk.id,
+            self._version.id,
+            error,
+        )
+
+    def _log_chunk_interpretation_unreliable(self, chunk: Chunk) -> None:
+        logger.exception(
+            "La interpretación del chunk %s de la versión %s no es confiable",
+            chunk.id,
+            self._version.id,
+        )
+
+    def _log_chunk_interpreted(self, chunk: Chunk, result: ChunkInterpretationResult) -> None:
+        logger.info(
+            "Chunk %s de la versión %s interpretado con confianza %s y estado %s",
+            chunk.id,
+            self._version.id,
+            result.confidence,
+            enum_value(chunk.status),
+        )
+
+    def _log_interpretation_completed(self, summary: InterpretationSummary) -> None:
+        logger.info(
+            "Interpretación de la versión %s finalizada en estado %s. Chunks: %s, en revisión: %s, aprobados: %s",
+            self._version.id,
+            enum_value(self._version.status),
+            summary.chunks_processed,
+            summary.chunks_requiring_review,
+            summary.chunks_approved,
+        )
 
     def _unreliable_result(self) -> ChunkInterpretationResult:
         interpretation = "No fue posible interpretar el fragmento de forma confiable."

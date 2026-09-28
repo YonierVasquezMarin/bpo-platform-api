@@ -49,6 +49,7 @@ class DocumentIngestionOrchestrator:
     def _execute_processing(self) -> DocumentVersion:
         self._load_version_for_processing()
         if self._version_is_approved():
+            self._log_processing_skips_to_indexing()
             return self._index_current_version()
         self._run_initial_processing()
         if self._version_is_approved():
@@ -64,12 +65,14 @@ class DocumentIngestionOrchestrator:
         if not self._document_repository.claim_version_for_processing(self._version_id):
             raise DocumentVersionNotProcessableError()
         self._version = self._require_version()
+        self._log_initial_processing_started()
         execution = self._open_execution(ProcessingExecutionType.INITIAL_PROCESSING)
         chunks = self._chunking_service.create_chunks(self._version)
         self._document_repository.commit()
         summary = self._interpretation_service.interpret_version(self._version, chunks)
         self._complete_execution(execution, summary)
         self._document_repository.commit()
+        self._log_initial_processing_completed(summary)
 
     def _index_current_version(self) -> DocumentVersion:
         try:
@@ -80,6 +83,7 @@ class DocumentIngestionOrchestrator:
         return self._version
 
     def _execute_indexing(self) -> None:
+        self._log_indexing_started()
         chunks = self._document_repository.list_chunks(self._version.id)
         execution = self._open_execution(ProcessingExecutionType.INDEXING)
         indexed_count = self._indexing_service.index_approved_chunks(self._version, chunks)
@@ -89,6 +93,7 @@ class DocumentIngestionOrchestrator:
         execution.chunks_approved = indexed_count
         self._add_audit_event("DOCUMENT_INDEXED", "SYSTEM", None, {"indexed_chunks": indexed_count})
         self._document_repository.commit()
+        self._log_indexing_completed(indexed_count)
 
     def _open_execution(self, execution_type: ProcessingExecutionType) -> ProcessingExecution:
         execution = ProcessingExecution(
@@ -194,8 +199,33 @@ class DocumentIngestionOrchestrator:
     def _trim_error(self, error: Exception) -> str:
         return f"{type(error).__name__}: {error}"[:4000]
 
+    def _log_processing_skips_to_indexing(self) -> None:
+        logger.info(
+            "La versión %s ya está aprobada. Se omite el procesamiento inicial y se indexa",
+            self._version.id,
+        )
+
+    def _log_initial_processing_started(self) -> None:
+        logger.info("Iniciando procesamiento inicial de la versión %s", self._version.id)
+
+    def _log_initial_processing_completed(self, summary: InterpretationSummary) -> None:
+        logger.info(
+            "Procesamiento inicial de la versión %s finalizado en estado %s. Chunks: %s, en revisión: %s, aprobados: %s",
+            self._version.id,
+            enum_value(self._version.status),
+            summary.chunks_processed,
+            summary.chunks_requiring_review,
+            summary.chunks_approved,
+        )
+
+    def _log_indexing_started(self) -> None:
+        logger.info("Iniciando indexación de la versión %s", self._version.id)
+
+    def _log_indexing_completed(self, indexed_count: int) -> None:
+        logger.info("Indexación de la versión %s finalizada con %s chunks", self._version.id, indexed_count)
+
     def _log_processing_failed(self, error: Exception) -> None:
-        logger.error("Falló el procesamiento de la versión %s: %s", self._version_id, error)
+        logger.exception("Falló el procesamiento de la versión %s: %s", self._version_id, error)
 
     def _log_indexing_failed(self, error: Exception) -> None:
-        logger.error("Falló la indexación de la versión %s: %s", self._version_id, error)
+        logger.exception("Falló la indexación de la versión %s: %s", self._version_id, error)

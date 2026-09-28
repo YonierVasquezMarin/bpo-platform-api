@@ -71,7 +71,8 @@ class DocumentUploadService:
             UnsupportedDocumentTypeError,
             DocumentMetadataError,
             BlobStorageNotConfiguredError,
-        ):
+        ) as error:
+            self._log_upload_rejected(error)
             raise
         except Exception:
             self._log_upload_failed()
@@ -129,6 +130,7 @@ class DocumentUploadService:
             content_type=_CONTENT_TYPES[self._file_type()],
         )
         self._blob_uploaded = True
+        self._log_blob_stored()
 
     def _persist_document(self) -> DocumentCreatedDto:
         document = self._build_document()
@@ -236,6 +238,12 @@ class DocumentUploadService:
 
     def _log_upload_started(self) -> None:
         logger.info("Iniciando cargue del documento %s", self._command.file_name)
+
+    def _log_upload_rejected(self, error: Exception) -> None:
+        logger.warning("Cargue rechazado para %s: %s", self._command.file_name, error)
+
+    def _log_blob_stored(self) -> None:
+        logger.info("Blob del documento %s almacenado en %s", self._command.file_name, self._blob_path)
 
     def _log_upload_succeeded(self, version: DocumentVersion) -> None:
         logger.info("Documento cargado en la versión %s", version.id)

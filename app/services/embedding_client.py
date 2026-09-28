@@ -1,7 +1,11 @@
+import logging
+
 from openai import APIConnectionError, APIStatusError, AuthenticationError, AzureOpenAI
 
 from app.core.config import settings
 from app.core.exceptions import DocumentIntelligenceNotConfiguredError, DocumentModelCallError, EmbeddingDimensionError
+
+logger = logging.getLogger(__name__)
 
 
 class AzureEmbeddingClient:
@@ -14,8 +18,10 @@ class AzureEmbeddingClient:
 
     def create_embedding(self, content: str) -> list[float]:
         self._ensure_configured()
+        self._log_embedding_requested()
         vector = self._request_embedding(content)
         self._ensure_dimensions(vector)
+        self._log_embedding_completed(len(vector))
         return vector
 
     def _ensure_configured(self) -> None:
@@ -29,12 +35,32 @@ class AzureEmbeddingClient:
         try:
             response = self._client().embeddings.create(model=self._deployment, input=content)
         except (AuthenticationError, APIConnectionError, APIStatusError) as ex:
+            self._log_embedding_call_failed(ex)
             raise DocumentModelCallError("No se pudo generar el embedding") from ex
         return list(response.data[0].embedding)
 
     def _ensure_dimensions(self, vector: list[float]) -> None:
-        if len(vector) != self._dimensions:
-            raise EmbeddingDimensionError()
+        if len(vector) == self._dimensions:
+            return
+        self._log_embedding_dimension_mismatch(len(vector))
+        raise EmbeddingDimensionError()
+
+    def _log_embedding_requested(self) -> None:
+        logger.info("Generando embedding con el modelo %s", self._deployment)
+
+    def _log_embedding_completed(self, dimensions: int) -> None:
+        logger.info("Embedding generado con el modelo %s (%s dimensiones)", self._deployment, dimensions)
+
+    def _log_embedding_call_failed(self, error: Exception) -> None:
+        logger.exception("Falló la generación del embedding con el modelo %s: %s", self._deployment, error)
+
+    def _log_embedding_dimension_mismatch(self, actual_dimensions: int) -> None:
+        logger.error(
+            "El embedding del modelo %s tiene %s dimensiones y se esperaban %s",
+            self._deployment,
+            actual_dimensions,
+            self._dimensions,
+        )
 
     def _client(self) -> AzureOpenAI:
         return AzureOpenAI(

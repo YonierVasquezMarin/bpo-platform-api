@@ -22,11 +22,11 @@ logger = logging.getLogger(__name__)
 
 
 def process_document_version(version_id: int) -> None:
-    _run_background_task(version_id, _process)
+    _run_background_task(version_id, "procesamiento", _process)
 
 
 def index_document_version(version_id: int) -> None:
-    _run_background_task(version_id, _index)
+    _run_background_task(version_id, "indexación", _index)
 
 
 def build_document_ingestion_orchestrator(db: Session) -> DocumentIngestionOrchestrator:
@@ -52,16 +52,29 @@ def build_document_ingestion_orchestrator(db: Session) -> DocumentIngestionOrche
     )
 
 
-def _run_background_task(version_id: int, action) -> None:
+def _run_background_task(version_id: int, task_name: str, action) -> None:
+    _log_background_task_started(task_name, version_id)
     db = SessionLocal()
     try:
         action(db, version_id)
     except (DocumentVersionNotFoundError, DocumentVersionNotProcessableError):
-        logger.info("La versión %s no admite la tarea solicitada", version_id)
+        _log_background_task_skipped(task_name, version_id)
     except Exception:
-        logger.exception("Falló la tarea de la versión %s", version_id)
+        _log_background_task_failed(task_name, version_id)
     finally:
         db.close()
+
+
+def _log_background_task_started(task_name: str, version_id: int) -> None:
+    logger.info("Iniciando tarea de %s para la versión %s", task_name, version_id)
+
+
+def _log_background_task_skipped(task_name: str, version_id: int) -> None:
+    logger.info("La versión %s no admite la tarea de %s", version_id, task_name)
+
+
+def _log_background_task_failed(task_name: str, version_id: int) -> None:
+    logger.exception("Falló la tarea de %s de la versión %s", task_name, version_id)
 
 
 def _process(db: Session, version_id: int) -> None:

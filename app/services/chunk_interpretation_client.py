@@ -1,4 +1,5 @@
 import json
+import logging
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 
@@ -6,6 +7,8 @@ from openai import APIConnectionError, APIStatusError, AuthenticationError, Azur
 
 from app.core.config import settings
 from app.core.exceptions import DocumentIntelligenceNotConfiguredError, DocumentModelCallError
+
+logger = logging.getLogger(__name__)
 
 _SYSTEM_PROMPT = """Eres un analista de conocimiento de una operación BPO.
 Interpretas un fragmento de un documento operativo para que un revisor humano decida si puede indexarse.
@@ -44,11 +47,15 @@ class AzureChunkInterpretationClient:
 
     def interpret_chunk(self, content: str, section_title: str | None) -> ChunkInterpretationResult:
         self._ensure_configured()
+        self._log_interpretation_call_started()
         raw_content = self._request_completion(content, section_title)
         try:
-            return self._build_result(raw_content)
+            result = self._build_result(raw_content)
         except (json.JSONDecodeError, InvalidOperation, KeyError, TypeError, ValueError):
+            self._log_interpretation_response_unusable()
             return self._unreliable_result()
+        self._log_interpretation_call_completed(result.confidence)
+        return result
 
     def _ensure_configured(self) -> None:
         configuration_is_complete = bool(
@@ -69,6 +76,7 @@ class AzureChunkInterpretationClient:
                 ],
             )
         except (AuthenticationError, APIConnectionError, APIStatusError) as ex:
+            self._log_interpretation_call_failed(ex)
             raise DocumentModelCallError("No se pudo consultar el modelo de interpretación") from ex
         if not response.choices:
             return ""
@@ -135,6 +143,18 @@ class AzureChunkInterpretationClient:
             model_name=self._deployment or "unavailable",
             prompt_version=self._prompt_version,
         )
+
+    def _log_interpretation_call_started(self) -> None:
+        logger.info("Consultando el modelo de interpretación %s", self._deployment)
+
+    def _log_interpretation_call_completed(self, confidence: Decimal) -> None:
+        logger.info("El modelo %s respondió con confianza %s", self._deployment, confidence)
+
+    def _log_interpretation_call_failed(self, error: Exception) -> None:
+        logger.exception("Falló la llamada al modelo de interpretación %s: %s", self._deployment, error)
+
+    def _log_interpretation_response_unusable(self) -> None:
+        logger.warning("La respuesta del modelo %s no se pudo interpretar", self._deployment)
 
     def _client(self) -> AzureOpenAI:
         return AzureOpenAI(
