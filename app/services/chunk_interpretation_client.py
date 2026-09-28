@@ -2,8 +2,9 @@ import json
 import logging
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
+from urllib.parse import urlsplit
 
-from openai import APIConnectionError, APIStatusError, AuthenticationError, AzureOpenAI
+from openai import APIConnectionError, APIStatusError, AuthenticationError, OpenAI
 
 from app.core.config import settings
 from app.core.exceptions import DocumentIntelligenceNotConfiguredError, DocumentModelCallError
@@ -35,13 +36,11 @@ class AzureChunkInterpretationClient:
         self,
         endpoint: str,
         api_key: str,
-        api_version: str,
         deployment: str,
         prompt_version: str,
     ) -> None:
         self._endpoint = endpoint
         self._api_key = api_key
-        self._api_version = api_version
         self._deployment = deployment
         self._prompt_version = prompt_version
 
@@ -68,7 +67,6 @@ class AzureChunkInterpretationClient:
         try:
             response = self._client().chat.completions.create(
                 model=self._deployment,
-                temperature=0,
                 response_format={"type": "json_object"},
                 messages=[
                     {"role": "system", "content": _SYSTEM_PROMPT},
@@ -145,7 +143,11 @@ class AzureChunkInterpretationClient:
         )
 
     def _log_interpretation_call_started(self) -> None:
-        logger.info("Consultando el modelo de interpretación %s", self._deployment)
+        logger.info(
+            "Consultando el modelo de interpretación %s en %s",
+            self._deployment,
+            self._v1_base_url(),
+        )
 
     def _log_interpretation_call_completed(self, confidence: Decimal) -> None:
         logger.info("El modelo %s respondió con confianza %s", self._deployment, confidence)
@@ -156,20 +158,22 @@ class AzureChunkInterpretationClient:
     def _log_interpretation_response_unusable(self) -> None:
         logger.warning("La respuesta del modelo %s no se pudo interpretar", self._deployment)
 
-    def _client(self) -> AzureOpenAI:
-        return AzureOpenAI(
+    def _client(self) -> OpenAI:
+        return OpenAI(
             api_key=self._api_key,
-            api_version=self._api_version,
-            azure_endpoint=self._endpoint,
+            base_url=self._v1_base_url(),
             timeout=60,
         )
+
+    def _v1_base_url(self) -> str:
+        parsed = urlsplit(self._endpoint.strip())
+        return f"{parsed.scheme}://{parsed.netloc}/openai/v1/"
 
 
 def build_chunk_interpretation_client() -> AzureChunkInterpretationClient:
     return AzureChunkInterpretationClient(
         endpoint=settings.azure_openai_endpoint,
         api_key=settings.azure_openai_api_key,
-        api_version=settings.azure_openai_api_version,
         deployment=settings.azure_openai_chat_deployment,
         prompt_version=settings.interpretation_prompt_version,
     )
